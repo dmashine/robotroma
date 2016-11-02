@@ -15,20 +15,32 @@ enum State {
   LINE_FOLLOW
 };
 
+typedef struct {
+  double q; //process noise covariance
+  double r; //measurement noise covariance
+  double x; //value
+  double p; //estimation error covariance
+  double k; //kalman gain
+} kalman_state;
+
+void kalman_update(kalman_state* state, double measurement);
+kalman_state kalman_init(double q, double r, double p, double intial_value);
+
 int velocity = 0;  //Здесь будет храниться значение скорости
 
-int defaultSpeed = 100; // это число мы будем использовать в логике поворотов
+int defaultSpeed = 50; // это число мы будем использовать в логике поворотов
 
 NewPing sonarL(A3, A2); // Левый подключен к P5 и P6
 NewPing sonarR(A1, A0); // Правый подключен к P7 и P8
 int durationL;
 int durationR;
+kalman_state k_sR;
+kalman_state k_sL;
 
 int brightnL;
 int brightnR;
 
 double Setpoint, Input, Output;
-int d;
 
 State state;
 
@@ -45,18 +57,26 @@ void setup()
   Serial.begin(9600);
   pinMode(LINE_L, INPUT);
   pinMode(LINE_R, INPUT);
+  
+  //setup kalman
+  // kalman_init(double q, double r, double p, double intial_value)
+  k_sR = kalman_init(1.0, 2.0, 1.0, 40);
+  k_sL = kalman_init(1.0, 2.0, 1.0, 40);
+  
   Setpoint = 0; // Пид-регулятор разворачивает на серидину коридора
   Input = 0;
   //turn the PID on
   myPID.SetMode(AUTOMATIC);
   //velocity = 255; //скорость максимальна
   state = RC_CONTROL;
+
+
 }
 
 void loop()
 {
   readSensors();
-  d = abs(durationL - durationR);
+  int d = abs(durationL - durationR);
   int Kv = 0;
   char dataIn;
   switch (state) {
@@ -191,9 +211,36 @@ void control()  // функция управления
   }
 }
 void readSensors() {
-  durationL = sonarL.ping_cm();
-  durationR = sonarR.ping_cm();
+  int dL = sonarL.ping_cm();
+  int dR = sonarR.ping_cm();
+  kalman_update(&k_sL, dL);
+  kalman_update(&k_sR, dR);
+  durationL = (int)k_sL.x;
+  durationR = (int)k_sR.x;
   brightnL = analogRead(LINE_L);
   brightnR = analogRead(LINE_R);
 }
 
+// ****
+// Калман
+// ****
+
+kalman_state kalman_init(double q, double r, double p, double intial_value)
+{
+  kalman_state result;
+  result.q = q;
+  result.r = r;
+  result.p = p;
+  result.x = intial_value;
+  return result;
+}
+void kalman_update(kalman_state* state, double measurement)
+{
+  //prediction update
+  //omit x = x
+  state->p = state->p + state->q;
+  //measurement update
+  state->k = state->p / (state->p + state->r);
+  state->x = state->x + state->k * (measurement - state->x);
+  state->p = (1 - state->k) * state->p;
+}
