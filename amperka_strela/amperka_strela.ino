@@ -57,12 +57,12 @@ void setup()
   Serial.begin(9600);
   pinMode(LINE_L, INPUT);
   pinMode(LINE_R, INPUT);
-  
+
   //setup kalman
   // kalman_init(double q, double r, double p, double intial_value)
   k_sR = kalman_init(1.0, 2.0, 1.0, 40);
   k_sL = kalman_init(1.0, 2.0, 1.0, 40);
-  
+
   Setpoint = 0; // Пид-регулятор разворачивает на серидину коридора
   Input = 0;
   //turn the PID on
@@ -77,6 +77,7 @@ void loop()
 {
   readSensors();
   int d = abs(durationL - durationR);
+  int l = abs(brightnL - brightnR);
   int Kv = 0;
   char dataIn;
   switch (state) {
@@ -98,6 +99,13 @@ void loop()
       else if ((durationL < 18) && (durationR < 18)) { // Впереди препятствие?
         drive(-230, -230); //едем назад
         delay(50);
+        drive(0, 0); // стоп
+        readSensors(); //осмотрелись
+        if (durationL < durationR)
+          drive(230, -230); //развернулись
+        else
+          drive(230, -230); //развернулись
+        delay(50);
       }
       else if (durationL < 18) { // Слева угол?
         drive(-230, 0); //едем назад
@@ -111,6 +119,29 @@ void loop()
         drive(230, 230); //едем вперед
       }
       //}
+      break;
+    case LINE_FOLLOW:
+      //Kv = velocity;
+      //int Input = (float)(brightnL - brightnR); //duration типа int
+      Kv = map(l, 0, 1000, 230, 255);
+      if (Serial1.available() > 0)
+      {
+        drive(0, 0);
+        state = RC_CONTROL;
+      }
+      if (abs(l) > 40) { // Большая разница по свету, поворачиваем
+        if (l > 0)
+        { drive(Kv, -Kv);
+          delay(50);
+        }
+        else {
+          drive(-Kv, Kv);
+          delay(50);
+        }
+      }
+      else {
+        drive(230, 23); //выровняли, едем вперед.
+      }
       break;
     case RC_CONTROL:
       if (Serial1.available() > 0)    //Если появились новые команды
@@ -133,17 +164,16 @@ void loop()
   Serial.print(durationL);
   Serial.print("\tdR-");
   Serial.print(durationR);
+  Serial.print("\tbL-");
+  Serial.print(brightnL);
+  Serial.print("\tbR-");
+  Serial.print(brightnR);
   Serial.print("\td-");
   Serial.print(d);
-  Serial.print("\tO-");
-  Serial.print(Output);
-  Serial.print("\tKv-");
-  Serial.print(Kv);
+  Serial.print("\tl-");
+  Serial.print(l);
   Serial.println();
-  Serial.print("bL ");
-  Serial.println(brightnL);
-  Serial.print("bR ");
-  Serial.println(brightnR);
+
   //delay(1000);
 }
 void control()  // функция управления
@@ -208,6 +238,10 @@ void control()  // функция управления
   else if (dataIn == 'Y') //Переключаемся
   { drive(0, 0);
     state = SONAR_CONTROL;
+  }
+  else if (dataIn == 'Z') //Переключаемся
+  { drive(0, 0);
+    state = LINE_FOLLOW;
   }
 }
 void readSensors() {
