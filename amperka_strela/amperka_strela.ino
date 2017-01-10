@@ -8,6 +8,7 @@
 
 #define LINE_L A4
 #define LINE_R A5
+#define BLACK_B 300
 
 enum State {
   RC_CONTROL,
@@ -129,13 +130,13 @@ void loop()
         drive(0, 0);
         state = RC_CONTROL;
       }
-      if (abs(l) > 40) { // Большая разница по свету, поворачиваем
-        if (l > 0)
-        { drive(Kv, -Kv);
+      if ((brightnL < BLACK_B) || (brightnR < BLACK_B)) { // Алярм! Выехали с линии
+        if (brightnL - brightnR < -100)
+        { drive(-Kv, Kv);
           delay(50);
         }
-        else {
-          drive(-Kv, Kv);
+        else if (brightnL - brightnR > 100){
+          drive(Kv, -Kv);
           delay(50);
         }
       }
@@ -150,30 +151,31 @@ void loop()
       }
       break;
   }
-  Serial1.print("*G");
-  Serial1.print(durationL);
-  Serial1.print(",");
-  Serial1.print(durationR);
-  Serial1.println();
-  Serial1.print("*L");
-  Serial1.println(brightnL);
-  Serial1.print("*R");
-  Serial1.println(brightnR);
+  if (millis() % 100 == 0) { // Не перегружаем Serial()
+    Serial1.print("*G");
+    Serial1.print(durationL);
+    Serial1.print(",");
+    Serial1.print(durationR);
+    Serial1.println();
+    Serial1.print("*L");
+    Serial1.println(brightnL);
+    Serial1.print("*R");
+    Serial1.println(brightnR);
 
-  Serial.print("dL-");
-  Serial.print(durationL);
-  Serial.print("\tdR-");
-  Serial.print(durationR);
-  Serial.print("\tbL-");
-  Serial.print(brightnL);
-  Serial.print("\tbR-");
-  Serial.print(brightnR);
-  Serial.print("\td-");
-  Serial.print(d);
-  Serial.print("\tl-");
-  Serial.print(l);
-  Serial.println();
-
+    Serial.print("dL-");
+    Serial.print(durationL);
+    Serial.print("\tdR-");
+    Serial.print(durationR);
+    Serial.print("\tbL-");
+    Serial.print(brightnL);
+    Serial.print("\tbR-");
+    Serial.print(brightnR);
+    Serial.print("\td-");
+    Serial.print(d);
+    Serial.print("\tl-");
+    Serial.print(l);
+    Serial.println();
+  }
   //delay(1000);
 }
 void control()  // функция управления
