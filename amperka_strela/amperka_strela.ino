@@ -230,6 +230,15 @@ void control()  // функция управления
     uDigitalWrite(L4, LOW);
   }
 
+  else if (dataIn == 'V')
+  {
+    tone(BUZZER, 1000);
+  }
+  else if (dataIn == 'v')
+  {
+    noTone(BUZZER);
+  }
+
   // если к нам пришло значение от 0 до 9
   else if (((dataIn - '0') >= 0) && ((dataIn - '0') <= 9))
     velocity = (dataIn - '0') * 25; //сохраняем новое значение скорости
