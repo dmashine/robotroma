@@ -141,7 +141,7 @@ void loop()
         }
       }
       else {
-        drive(230, 23); //выровняли, едем вперед.
+        drive(velocity, 23); //выровняли, едем вперед.
       }
       break;
     case RC_CONTROL:
