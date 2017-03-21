@@ -5,6 +5,7 @@
 #include <Wire.h> // Библиотека для работы с I2C
 #include <Strela.h> // Библиотека для работы со Стрелой
 #include <PID_v1.h> //Библиотека пид-регулятора
+#include <SoftwareServo.h> //http://playground.arduino.cc/ComponentLib/servo
 
 #define LINE_L A4
 #define LINE_R A5
@@ -47,6 +48,9 @@ State state;
 
 PID myPID(&Input, &Output, &Setpoint, 5, 0, 100, DIRECT); //Пид-регулятор
 
+SoftwareServo servos[4];
+int servoAngles[4] = {0, 0, 0, 0};
+
 void setup()
 {
   Serial1.begin(9600);     //Bluetooth Bee по умолчанию использует эту скорость
@@ -71,7 +75,10 @@ void setup()
   //velocity = 255; //скорость максимальна
   state = RC_CONTROL;
 
-
+  servos[0].attach(P1);
+  servos[1].attach(P2);
+  servos[2].attach(P3);
+  servos[3].attach(P4);
 }
 
 void loop()
@@ -103,7 +110,7 @@ void loop()
         drive(0, 0); // стоп
         readSensors(); //осмотрелись
         if (durationL < durationR)
-          drive(230, -230); //развернулись
+          drive(-230, 230); //развернулись
         else
           drive(230, -230); //развернулись
         delay(50);
@@ -135,7 +142,7 @@ void loop()
         { drive(-Kv, Kv);
           delay(50);
         }
-        else if (brightnL - brightnR > 100){
+        else if (brightnL - brightnR > 100) {
           drive(Kv, -Kv);
           delay(50);
         }
@@ -152,29 +159,29 @@ void loop()
       break;
   }
   if (millis() % 100 == 0) { // Не перегружаем Serial()
-    Serial1.print("*G");
-    Serial1.print(durationL);
-    Serial1.print(",");
-    Serial1.print(durationR);
-    Serial1.println();
-    Serial1.print("*L");
-    Serial1.println(brightnL);
-    Serial1.print("*R");
-    Serial1.println(brightnR);
+    /*   Serial1.print("*G");
+       Serial1.print(durationL);
+       Serial1.print(",");
+       Serial1.print(durationR);
+       Serial1.println();
+       Serial1.print("*L");
+       Serial1.println(brightnL);
+       Serial1.print("*R");
+       Serial1.println(brightnR);
 
-    Serial.print("dL-");
-    Serial.print(durationL);
-    Serial.print("\tdR-");
-    Serial.print(durationR);
-    Serial.print("\tbL-");
-    Serial.print(brightnL);
-    Serial.print("\tbR-");
-    Serial.print(brightnR);
-    Serial.print("\td-");
-    Serial.print(d);
-    Serial.print("\tl-");
-    Serial.print(l);
-    Serial.println();
+       Serial.print("dL-");
+       Serial.print(durationL);
+       Serial.print("\tdR-");
+       Serial.print(durationR);
+       Serial.print("\tbL-");
+       Serial.print(brightnL);
+       Serial.print("\tbR-");
+       Serial.print(brightnR);
+       Serial.print("\td-");
+       Serial.print(d);
+       Serial.print("\tl-");
+       Serial.print(l);
+       Serial.println();*/
   }
   //delay(1000);
 }
@@ -254,6 +261,30 @@ void control()  // функция управления
   { drive(0, 0);
     state = LINE_FOLLOW;
   }
+  else if (dataIn == 'A') {
+    moveservo(0, 5);
+  }
+  else if (dataIn == 'a') {
+    moveservo(0, -5);
+  }
+  else if (dataIn == 'C') {
+    moveservo(1, 5);
+  }
+  else if (dataIn == 'c') {
+    moveservo(1, -5);
+  }
+  else if (dataIn == 'D')  {
+    moveservo(2, 5);
+  }
+  else if (dataIn == 'd')  {
+    moveservo(2, -5);
+  }
+  else if (dataIn == 'E')  {
+    moveservo(3, 5);
+  }
+  else if (dataIn == 'e')  {
+    moveservo(3, -5);
+  }
 }
 void readSensors() {
   int dL = sonarL.ping_cm();
@@ -279,6 +310,14 @@ kalman_state kalman_init(double q, double r, double p, double intial_value)
   result.x = intial_value;
   return result;
 }
+
+void moveservo(int i, int d) {
+  servoAngles[i]  = constrain(servoAngles[i]+d, 0, 180);
+  servos[i].write(servoAngles[i] );
+  delay(15);
+  SoftwareServo::refresh();
+}
+
 void kalman_update(kalman_state* state, double measurement)
 {
   //prediction update
